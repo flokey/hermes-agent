@@ -1501,6 +1501,10 @@ class GatewayInboundMixin(GatewayInboundHooksMixin, GatewayInboundTranscriptionM
         message_text, _successful_transcripts = await self._enrich_message_with_transcription(
             message_text, audio_paths,
         )
+        # Keep the transcripts for the session title (a voice-only Discord message's
+        # text is the empty-content placeholder, which would otherwise be titled instead).
+        with suppress(Exception):
+            event._gateway_title_transcripts = list(_successful_transcripts)
         # Echo each successful transcript back immediately when configured so users can verify STT
         # quality in real time. On transcription failure do NOT send a hardcoded notice: that
         # bypassed the LLM and produced two replies; enrichment leaves one neutral marker instead.

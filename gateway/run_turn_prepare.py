@@ -729,6 +729,17 @@ class GatewayTurnPrepareMixin:
         message_text, persist_user_message, persist_user_timestamp = (
             self._hmwa_apply_message_timestamp(event, message_text)
         )
+        # A voice/attachment-only Discord message carries the empty-content placeholder
+        # as its text. Title from the STT transcript; with none, a voice clip skips titling this turn
+        # ("") and anything else falls back to the enriched message (None).
+        if (title_user_message or "").strip() == "(The user sent a message with no text content)":
+            _tx = (getattr(event, "_gateway_title_transcripts", None)
+                   or getattr(event, "_gateway_pending_stt_transcripts", None) or [])
+            _tx_text = "\n".join(t.strip() for t in _tx if isinstance(t, str) and t.strip())
+            _has_audio = False
+            with suppress(Exception):
+                _has_audio = bool(self._pending_event_audio_paths(event))
+            title_user_message = _tx_text or ("" if _has_audio else None)
 
         # Stage the notes (one-shot; consumed in run_sync) AFTER the early-out so an aborted turn
         # cannot leak them into the next turn.
