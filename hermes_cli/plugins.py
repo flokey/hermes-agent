@@ -1,3 +1,4 @@
+# health: allow FILE_LINES -- the growth is only the register_review_prompt_section delegate; its body lives in plugins_review_sections.py
 """Hermes Plugin System — discovers, loads, and manages plugins.
 
 Sources, later overriding earlier on key collision: bundled ``<repo>/plugins/<name>/`` (``memory/``
@@ -982,6 +983,11 @@ class PluginContext(PluginCapabilityCtxMixin):
         return self._register_entry("system_prompt_section", id, self._manager._system_prompt_sections,
                                     section, "Plugin %s registered system prompt section: %s", id,
                                     previous=existing)
+
+    def register_review_prompt_section(self, id: str, content, *, scope: str = "memory", max_chars: int = 4_000):
+        """Append a bounded block to the background review prompt (``plugins_review_sections``)."""
+        from hermes_cli.plugins_review_sections import register_review_prompt_section as register
+        return register(self, id, content, scope=scope, max_chars=max_chars)
 
     def emit(self, event: str, payload: Optional[dict] = None) -> int:
         """Publish bare *event* as ``<plugin_key>:<event>`` (namespace FORCED to this plugin); return

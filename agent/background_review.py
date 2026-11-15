@@ -12,6 +12,7 @@ import json
 import logging
 import os
 import threading
+import time
 from contextlib import contextmanager, suppress
 from dataclasses import dataclass, field
 from typing import Any, Dict, Iterator, List, Optional, Tuple
@@ -1139,7 +1140,21 @@ def _review_tool_whitelist(
             configured_extra_tools = {name.strip() for name in extra_raw if isinstance(name, str) and name.strip()}
     except Exception:
         logger.debug("background_review extra_tools parse failed", exc_info=True)
+    if _deferred_extra_tools(review_agent, configured_extra_tools):
+        # A deferred tool sits behind the tool-search bridge: the model calls it as
+        # ``tool_call(name=...)``, which the executor unwraps before this whitelist is checked, so
+        # admitting its own name is enough. ``tool_describe`` (read-only) lets the model read its
+        # schema first; the bridge's ``tool_call`` wrapper never reaches the whitelist by itself.
+        whitelist.add("tool_describe")
     return whitelist | configured_extra_tools, configured_extra_tools
+
+
+def _deferred_extra_tools(review_agent: Any, configured_extra_tools: set) -> list[str]:
+    """Configured extra tools the fork reaches only through the tool-search bridge."""
+    advertised = getattr(review_agent, "valid_tool_names", None) or set()
+    if "tool_call" not in advertised:
+        return []
+    return sorted(name for name in configured_extra_tools if name not in advertised)
 
 
 @dataclass
@@ -1191,6 +1206,9 @@ def _run_review_fork(
     extra_list = ", ".join(sorted(configured_extra_tools))
     deny_extra = f" Configured extra tools also allowed: {extra_list}." if configured_extra_tools else ""
     prompt_extra = f" Exception — these configured tools are also allowed: {extra_list}." if configured_extra_tools else ""
+    if deferred := _deferred_extra_tools(st.review_agent, configured_extra_tools):
+        prompt_extra += (f" Call {', '.join(deferred)} through tool_call (tool_describe shows the parameters);"
+                         " they are not listed directly.")
     # Keep the deny/prompt wording in sync with the whitelist: a memory-less review must not
     # tell the model that memory is available, or it will burn iterations on denied calls.
     memory_phrase_deny = " and memory for notes (add only)" if "memory" in review_whitelist else ""
@@ -1273,6 +1291,7 @@ def _run_review_in_thread(
         _set_thread_approval_callback(None)
         return
     st = _ReviewForkState()
+    started_at = time.time()
     try:
         # Silence stdout/stderr for THIS thread only: a process-global redirect would blank every
         # other thread's console for the whole review.
@@ -1308,6 +1327,10 @@ def _run_review_in_thread(
             )
             actions = []
         _log_review_completion(st.review_usage, _classify_review_result(actions))
+        if review_memory and not (review_run is not None and review_run.cancel_requested.is_set()):
+            from agent.memory_review_marker import record_finished_review
+            record_finished_review(agent, messages_snapshot, started_at,
+                                   getattr(agent, "_review_trigger", None) or ("refine" if explicit else "nudge"))
         if actions:
             _publish_review_summary(agent, actions)
     except Exception as e:
@@ -1326,6 +1349,35 @@ def _run_review_in_thread(
                 _release_fork_clients(st.review_agent)
         # Clear the approval callback so a recycled thread-id doesn't inherit it.
         _set_thread_approval_callback(None)
+
+
+def _review_chat_identity(agent: Any) -> dict[str, Any]:
+    """``chat_type`` / ``user_id`` of the reviewed session: the agent's gateway identity, else the
+    session row (a fork or a cold parent may not carry it)."""
+    ident = {"chat_type": getattr(agent, "_chat_type", None), "user_id": getattr(agent, "_user_id", None)}
+    if all(ident.values()):
+        return ident
+    db = getattr(getattr(agent, "_session_db", None), "_db", getattr(agent, "_session_db", None))
+    row = None
+    with suppress(Exception):
+        row = db.get_session(agent.session_id) if db is not None and getattr(agent, "session_id", None) else None
+    if isinstance(row, dict):
+        ident = {key: value or row.get(key) for key, value in ident.items()}
+    return ident
+
+
+def _plugin_review_sections(agent: Any, trigger: str, review_memory: bool, review_skills: bool) -> str:
+    """Blocks plugins registered with ``ctx.register_review_prompt_section`` for this review."""
+    try:
+        from hermes_cli.plugins import get_plugin_manager
+        from hermes_cli.plugins_review_sections import render_review_prompt_sections
+        return render_review_prompt_sections(get_plugin_manager(), {
+            "session_id": getattr(agent, "session_id", None), "platform": getattr(agent, "platform", None),
+            **_review_chat_identity(agent),
+            "trigger": trigger, "review_memory": review_memory, "review_skills": review_skills})
+    except Exception:  # health: allow BLE001 -- a broken plugin must not stop the review itself
+        logger.warning("Plugin review prompt sections failed to render; reviewing without them", exc_info=True)
+        return ""
 
 
 # (review_memory, review_skills) -> prompt attribute name; skills-only is also the default.
@@ -1352,6 +1404,9 @@ def spawn_background_review_thread(
     # Per-agent overrides (agent._MEMORY_REVIEW_PROMPT etc.) keep working.
     name = _PROMPT_NAME_BY_SCOPE[(review_memory, review_skills)]
     prompt = getattr(agent, name, globals()[name])
+    trigger = getattr(agent, "_review_trigger", None) or ("refine" if explicit or focus else "nudge")
+    if plugin_sections := _plugin_review_sections(agent, trigger, review_memory, review_skills):
+        prompt = f"{prompt}\n\n{plugin_sections}"
     if focus := (focus or "").strip():
         prompt = (
             f"{prompt}\n\nThe user explicitly requested this review with the following "
