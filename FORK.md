@@ -2,6 +2,11 @@
 
 A maintenance fork of [NousResearch/hermes-agent](https://github.com/NousResearch/hermes-agent).
 
+## Before you contribute
+
+This fork is public. Read [CLAUDE.md](CLAUDE.md) first: nothing personal goes into code,
+tests, commit messages, issues or pull requests, and every example must be invented.
+
 ## Branches
 
 - `hermes-0.22.6-flokey`: the v0.22.6 release plus the fixes below, one commit each. Every
