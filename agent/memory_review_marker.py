@@ -27,14 +27,17 @@ def _machinery_display_kinds() -> frozenset:
 
 
 def _is_out_of_band(message: dict) -> bool:
+    """An out-of-band steer block, or a cron delivery mirrored into the chat as a user-role turn."""
     from agent.conversation_compression import _message_text, _steer_markers
+    from cron.scheduler_delivery import CRON_MIRROR_PREFIX
     opener, _ = _steer_markers()
-    return _message_text(message).lstrip().startswith(opener)
+    return _message_text(message).lstrip().startswith((opener, CRON_MIRROR_PREFIX))
 
 
 def is_reviewable_user_turn(message: Any) -> bool:
     """A message a person typed: not runtime scaffolding, a compaction handoff, an injected
-    notification or process notice, a hidden wake, or an out-of-band block."""
+    notification or process notice, a hidden wake, an out-of-band block or a mirrored cron
+    delivery."""
     from agent.conversation_compression import _is_real_user_message
     if not _is_real_user_message(message):
         return False

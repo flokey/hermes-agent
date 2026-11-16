@@ -187,8 +187,13 @@ def _cron_display_name(job: dict) -> str:
     return _redact_cron_payload(job.get("name") or job.get("id", "cron"), "job name")
 
 
+# Opens every cron delivery mirrored into a chat transcript as a user-role turn; the memory review
+# matches it to tell the mirror from a person's message (``agent/memory_review_marker.py``).
+CRON_MIRROR_PREFIX = "[Cron delivery: "
+
+
 def _cron_mirror_message(job: dict, text: str) -> str:
-    return f"[Cron delivery: {_cron_display_name(job)}]\n{text}"
+    return f"{CRON_MIRROR_PREFIX}{_cron_display_name(job)}]\n{text}"
 
 
 def _maybe_mirror_cron_delivery(

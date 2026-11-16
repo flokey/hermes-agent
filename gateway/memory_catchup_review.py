@@ -230,4 +230,4 @@ async def memory_catchup_watcher(runner: Any, interval: float = TICK_SECONDS) ->
         await asyncio.sleep(interval)
 
 
-__all__ = ["CatchupConfig", "MemoryCatchupReviewer", "parse_config", "memory_catchup_watcher", "review_window"]
+__all__ = ["CatchupConfig", "MemoryCatchupReviewer", "memory_catchup_watcher", "parse_config", "review_window"]

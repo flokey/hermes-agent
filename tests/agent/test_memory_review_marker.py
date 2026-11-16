@@ -144,3 +144,15 @@ class TestNudgeReviewAdvancesMarker:
 
     def test_cancelled_review_leaves_the_turns_for_the_catch_up(self, monkeypatch):
         assert mrm.read_marker(self._run(monkeypatch, cancel_mid_review=True), "k") is None
+
+
+class TestCronDeliveryMirror:
+    def test_mirrored_cron_delivery_is_not_a_user_turn(self):
+        from cron.scheduler_delivery import _cron_mirror_message
+        mirrored = _user(_cron_mirror_message({"name": "morning-digest"}, "Three items today."), ts=10.0)
+        assert mirrored["role"] == "user"
+        assert not mrm.is_reviewable_user_turn(mirrored)
+        assert mrm.unreviewed_user_turns([mirrored, _user("thanks, snooze the second", ts=11.0)], None) == [1]
+
+    def test_a_person_quoting_the_label_mid_message_still_counts(self):
+        assert mrm.is_reviewable_user_turn(_user("what was that [Cron delivery: x] message about?"))
