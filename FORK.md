@@ -28,6 +28,8 @@ tests, commit messages, issues or pull requests, and every example must be inven
 | fix(discord): retire an orphaned typing loop instead of typing forever | #145944 |
 | fix(discord): skip empty chunks - Discord 400s code 50006 on empty content | #143819 |
 | feat(memory): catch-up review of turns the nudge review missed, plus plugin review hooks | ours (related: #58669, #31597, #145920) |
+| fix(gateway): a cold review parent binds the built-in memory store | ours (not reported upstream yet) |
+| fix(memory): a mirrored cron delivery is not a user turn for the review marker | ours (part of the catch-up review) |
 
 The fixes were open and unmerged upstream as of 2026-11-14; the catch-up review is this fork's own
 change, a candidate to propose upstream. The backports keep each PR's code and
