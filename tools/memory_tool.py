@@ -309,6 +309,20 @@ def get_builtin_memory_store_flags(config: Optional[dict[str, Any]] = None) -> t
     return tuple(is_truthy_value(section.get(k), default=True) for k in ("memory_enabled", "user_profile_enabled"))
 
 
+def build_builtin_memory_store(config: Optional[dict[str, Any]] = None) -> Optional[MemoryStore]:
+    """The built-in MEMORY.md/USER.md store as ``agent_init`` builds it, loaded from disk; ``None`` when
+    both stores are disabled."""
+    section = get_builtin_memory_config(config)
+    memory_enabled, user_enabled = get_builtin_memory_store_flags(config)
+    if not (memory_enabled or user_enabled):
+        return None
+    store = MemoryStore(
+        memory_char_limit=section.get("memory_char_limit", 2200), user_char_limit=section.get("user_char_limit", 1375),
+        memory_enabled=memory_enabled, user_profile_enabled=user_enabled)
+    store.load_from_disk()
+    return store
+
+
 @no_cache_check_fn
 def check_memory_requirements() -> bool:
     """Snapshot store flags and report whether the built-in tool is available."""

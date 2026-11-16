@@ -42,6 +42,20 @@ async def stored_transcript(runner, session_key):
     return session_id, list(history)
 
 
+def _bind_builtin_memory(agent, user_config):
+    """``skip_memory=True`` keeps external memory providers out, but it also skips the built-in store
+    unless the toolsets literally name ``memory``; a platform's composite toolset advertises the memory
+    tool without naming it. The reviewer inherits this agent's store, so without one it saw no current
+    MEMORY.md/USER.md (and re-added what was already there) and its memory tool answered "not available"."""
+    if agent._memory_store is not None or "memory" not in getattr(agent, "valid_tool_names", set()):
+        return
+    from tools.memory_tool import build_builtin_memory_store, get_builtin_memory_store_flags
+    store = build_builtin_memory_store(user_config)
+    if store is not None:
+        agent._memory_enabled, agent._user_profile_enabled = get_builtin_memory_store_flags(user_config)
+        agent._memory_store = store
+
+
 @contextlib.contextmanager
 def cold_review_parent(runner, source, session_key, session_id):
     """A fresh agent on the session's next-turn route (built as ``session_execution._build_fresh_agent``
@@ -89,6 +103,7 @@ def cold_review_parent(runner, source, session_key, session_id):
             # The reviewer reads the transcript excerpt; this agent never runs a turn of its own.
             skip_memory=True)
         agent._end_session_on_close = False
+        _bind_builtin_memory(agent, user_config)
         try:
             yield agent
         finally:
