@@ -30,6 +30,7 @@ tests, commit messages, issues or pull requests, and every example must be inven
 | feat(memory): catch-up review of turns the nudge review missed, plus plugin review hooks | ours (related: #58669, #31597, #145920) |
 | fix(gateway): a cold review parent binds the built-in memory store | ours (not reported upstream yet) |
 | fix(memory): a mirrored cron delivery is not a user turn for the review marker | ours (part of the catch-up review) |
+| feat(plugins): deepseek_search declares DeepSeek's server-side web tools | ours (plugin only, no core change) |
 
 The fixes were open and unmerged upstream as of 2026-11-14; the catch-up review is this fork's own
 change, a candidate to propose upstream. The backports keep each PR's code and
