@@ -35,6 +35,15 @@ The fixes were open and unmerged upstream as of 2026-11-14; the catch-up review 
 change, a candidate to propose upstream. The backports keep each PR's code and
 tests as the PR's authors wrote them; credit is theirs.
 
+## Contrib plugins
+
+`contrib/` holds this fork's own user plugins, kept here for version control. They are not
+bundled plugins and are not loaded from here: copy one into `$HERMES_HOME/plugins/` to use it.
+
+| Plugin | What it does |
+|---|---|
+| `contrib/deepseek_search` | Declares DeepSeek's server-side web search/read tools on DeepSeek requests (skips cron and thinking-off turns) |
+
 ## Upgrading
 
 Start a new branch `hermes-<version>-flokey` from the new release tag and cherry-pick the

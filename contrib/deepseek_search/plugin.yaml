@@ -1,0 +1,8 @@
+name: deepseek_search
+version: 0.1.0
+manifest_version: 2
+api_version: 1
+description: "Declares DeepSeek's server-side web tools (deepseek_web_search, deepseek_read_url) on requests to api.deepseek.com. DeepSeek runs the search itself; billed per search/fetch on the DeepSeek account. Skips cron runs."
+author: flokey
+requires_hermes: ">=0.22.6"
+tags: [web, search, deepseek]
