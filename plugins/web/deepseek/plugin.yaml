@@ -1,0 +1,7 @@
+name: web-deepseek
+version: 1.0.0
+description: "DeepSeek Search and Fetch APIs (POST /v1/tools/search, /v1/tools/fetch). Uses DEEPSEEK_API_KEY, the same key as the DeepSeek model provider."
+author: flokey
+kind: backend
+provides_web_providers:
+  - deepseek

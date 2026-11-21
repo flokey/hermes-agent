@@ -205,18 +205,24 @@ class PerplexityWebSearchProvider(WebSearchProvider):
         the default (``high``) returns multi-KB page excerpts per hit, which
         belongs in ``web_extract`` rather than a results list.
         """
+        from agent.web_search_provider import get_provider_env
+        from tools.web_tools import _managed_web_search
+
+        direct = bool(get_provider_env("PERPLEXITY_API_KEY"))
+        return self.search_routed(query, limit, managed=False if direct else _managed_web_search())
+
+    def search_routed(self, query: str, limit: int, *, managed: bool) -> dict[str, Any]:
+        """Search with the managed route decided by the caller. ``search`` asks the stored web
+        selection; a routing backend (lang-router) is itself the selection, so it passes
+        ``managed=True`` when no direct key is set."""
         try:
             from tools.interrupt import is_interrupted
 
             if is_interrupted():
                 return {"success": False, "error": "Interrupted"}
 
-            from agent.web_search_provider import get_provider_env
             from tools.managed_tool_gateway import resolve_free_search_gateway
-            from tools.web_tools import _managed_web_search
 
-            direct = bool(get_provider_env("PERPLEXITY_API_KEY"))
-            managed = False if direct else _managed_web_search()
             gateway = resolve_free_search_gateway() if managed else None
             if gateway is None and managed:
                 from tools.tool_backend_helpers import NOUS_MANAGED_PROVIDER, selection_error
@@ -236,7 +242,7 @@ class PerplexityWebSearchProvider(WebSearchProvider):
         except ValueError as exc:
             return {"success": False, "error": str(exc)}
         except Exception as exc:
-            logger.warning("Perplexity search error: %s", exc)
+            logger.warning("Perplexity search error: %s", exc, exc_info=True)
             return {"success": False, "error": f"Perplexity search failed: {exc}"}
 
     def extract(self, urls: list[str], **kwargs: Any) -> list[dict[str, Any]]:

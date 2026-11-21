@@ -1,0 +1,7 @@
+name: web-lang-router
+version: 1.0.0
+description: "Routes each web_search query by script: CJK queries to one backend (default deepseek), the rest to another (default perplexity), each the other's fallback. Search only."
+author: flokey
+kind: backend
+provides_web_providers:
+  - lang-router
