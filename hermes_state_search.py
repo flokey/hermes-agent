@@ -19,7 +19,7 @@ from agent.skill_commands import describe_skill_invocation
 from hermes_state_errors import is_malformed_db_error
 from hermes_state_common import (
     FTS_CJK_STALE_KEY, FTS_SQL, FTS_STALE_KEY, FTS_STORAGE_VERSION, FTS_TOOL_CONTENT_PREFIX_CHARS,
-    FTS_TRIGRAM_EXCLUDED_SOURCES, FTS_TRIGRAM_SQL,
+    FTS_TRIGRAM_EXCLUDED_SOURCES, FTS_TRIGRAM_SQL, RECALL_VISIBLE_SQL,
     MAX_FTS5_QUERY_CHARS, SCHEMA_VERSION, _FTS_CJK_TRIGGERS,
     escape_like as _escape_like, fts_rebuild_admission, fts_trigram_session_sql, routed_sessions_setting,
 )
@@ -952,7 +952,7 @@ class SessionSearchMixin:
                     return conn.execute(
                         f"SELECT * FROM messages "
                         f"WHERE session_id = ? AND id {op} ?{role_clause} "
-                        f"AND length(content) > 0 "
+                        f"AND length(content) > 0 AND {RECALL_VISIBLE_SQL} "
                         f"ORDER BY id {order} LIMIT ?",
                         (session_id, boundary_id, *role_params, bookend),
                     ).fetchall()

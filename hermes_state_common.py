@@ -182,6 +182,9 @@ _RESET_END_REASONS_SQL = ", ".join(f"'{reason}'" for reason in _RESET_END_REASON
 # 'new_session' (hermes_cli/cli_session_mixin.py) without a reset child row.  A compression rotation must
 # never heal one of these (#106459); tools/session_search_tool.py derives its fresh-reset set from it.
 _BOUNDARY_END_REASONS = frozenset(_RESET_END_REASONS) | {"new_session"}
+# Rows recall may show: what every search route matches (``_search_filter_clauses``). Rewind/undo rows
+# (active=0, compacted=0) and display_kind='hidden' scaffolding stay out of the context windows too.
+RECALL_VISIBLE_SQL = "(active = 1 OR compacted = 1) AND COALESCE(display_kind, '') <> 'hidden'"
 
 # Accidental end reasons recovery treats as resumable (website/docs/developer-guide/gateway-session-lifecycle.md); single source of truth for
 # recovery SQL and SessionDB.RECOVERABLE_END_REASONS.  superseded_by_resume = sentinel-parked runtime replaced

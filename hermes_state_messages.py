@@ -21,7 +21,7 @@ from agent.message_sanitization import _sanitize_surrogates, coalesce_tool_call_
 from hermes_cli.timefmt import coerce_epoch
 from hermes_state_common import (
     _COMPRESSION_LOCK_ROW_SQL, _ENDED_ROW_SQL, _RESET_END_REASONS, _RESET_END_REASONS_SQL, _ended_by_compression,
-    _json_or, _legacy_reset_child_sql, _placeholders, _sql_json_extract)
+    RECALL_VISIBLE_SQL, _json_or, _legacy_reset_child_sql, _placeholders, _sql_json_extract)
 from hermes_state_compaction_display import later_tool_copy_ids, not_a_later_tool_copy_sql
 from hermes_state_detached_results import SessionDetachedResultsMixin
 from hermes_state_todo import SessionTodoResultMixin
@@ -1432,17 +1432,19 @@ class SessionMessagesMixin(SessionDetachedResultsMixin, SessionTodoResultMixin):
 
     def get_messages_around(self, session_id: str, around_message_id: int, window: int = 5) -> dict[str, Any]:
         """Up to *window* messages either side of an anchor id (ascending). ``messages_before``/``_after`` count
-        strictly around the anchor (fewer than *window* = session boundary). Empty for a foreign anchor."""
+        strictly around the anchor (fewer than *window* = session boundary). Empty for a foreign anchor.
+        Neighbours are limited to ``RECALL_VISIBLE_SQL`` rows; the anchor itself is always returned."""
         window = max(window, 0)
         with self._read_ctx() as conn:
             if not conn.execute("SELECT 1 FROM messages WHERE id = ? AND session_id = ? LIMIT 1",
                                 (around_message_id, session_id)).fetchone():
                 return {"window": [], "messages_before": 0, "messages_after": 0}
             before_rows = conn.execute(
-                "SELECT * FROM messages WHERE session_id = ? AND id <= ? ORDER BY id DESC LIMIT ?",
-                (session_id, around_message_id, window + 1)).fetchall()
+                f"SELECT * FROM messages WHERE session_id = ? AND id <= ? AND (id = ? OR {RECALL_VISIBLE_SQL}) "
+                "ORDER BY id DESC LIMIT ?",
+                (session_id, around_message_id, around_message_id, window + 1)).fetchall()
             after_rows = conn.execute(
-                "SELECT * FROM messages WHERE session_id = ? AND id > ? ORDER BY id ASC LIMIT ?",
+                f"SELECT * FROM messages WHERE session_id = ? AND id > ? AND {RECALL_VISIBLE_SQL} ORDER BY id ASC LIMIT ?",
                 (session_id, around_message_id, window)).fetchall()
         window_msgs = [self._row_to_message_dict(r, warn_context="get_messages_around", summary_flag=False)
                        for r in (*reversed(before_rows), *after_rows)]
